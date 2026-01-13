@@ -24872,6 +24872,218 @@ if (typeof importarBackup !== 'undefined') {
 }
 
 console.log('✅ Importación completa de backup conectada al backend');
+// ========== MATERIALES - CONEXIÓN AL BACKEND ==========
+
+// Override función para cargar materiales
+async function cargarMaterialesDesdeBackend() {
+    try {
+        const response = await fetch(`${API_URL}/materiales`);
+        const materiales = await response.json();
+        window.db.materiales = materiales;
+        
+        if (typeof renderMateriales === 'function') {
+            renderMateriales();
+        }
+        
+        console.log('✅ Materiales cargados desde PostgreSQL:', materiales.length);
+    } catch (error) {
+        console.error('❌ Error cargando materiales:', error);
+    }
+}
+
+// Override función crearMaterial
+if (typeof crearMaterial !== 'undefined') {
+    const crearMaterialOriginal = window.crearMaterial;
+    window.crearMaterial = async function() {
+        // Obtener valores del formulario
+        const nombre = document.getElementById('material-nombre')?.value;
+        const categoria = document.getElementById('material-categoria')?.value;
+        const unidad = document.getElementById('material-unidad')?.value;
+        const precioUnitario = parseFloat(document.getElementById('material-precio')?.value) || 0;
+        const proveedor = document.getElementById('material-proveedor')?.value;
+        const stockActual = parseFloat(document.getElementById('material-stock')?.value) || 0;
+        
+        if (!nombre) {
+            alert('⚠️ Ingresa el nombre del material');
+            return;
+        }
+        
+        const material = {
+            nombre,
+            categoria: categoria || 'General',
+            unidad: unidad || 'UND',
+            precio_unitario: precioUnitario,
+            proveedor: proveedor || 'SIN PROVEEDOR',
+            stock_actual: stockActual
+        };
+        
+        try {
+            console.log('📤 Enviando material al backend:', material);
+            
+            const response = await fetch(`${API_URL}/materiales`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(material)
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Error creando material');
+            }
+            
+            const materialGuardado = await response.json();
+            
+            console.log('✅ Material guardado en PostgreSQL:', materialGuardado);
+            
+            // Actualizar lista local
+            if (!window.db.materiales) window.db.materiales = [];
+            window.db.materiales.push(materialGuardado);
+            
+            // Re-renderizar
+            if (typeof renderMateriales === 'function') {
+                renderMateriales();
+            }
+            
+            // Limpiar formulario
+            if (document.getElementById('material-nombre')) {
+                document.getElementById('material-nombre').value = '';
+                document.getElementById('material-categoria').value = '';
+                document.getElementById('material-unidad').value = 'KG';
+                document.getElementById('material-precio').value = '';
+                document.getElementById('material-proveedor').value = '';
+                document.getElementById('material-stock').value = '';
+            }
+            
+            // Cerrar modal si existe
+            if (typeof cerrarModal === 'function') {
+                cerrarModal();
+            }
+            
+            alert('✅ Material guardado en PostgreSQL\n\n' +
+                  'Otros usuarios lo verán al recargar la página');
+            
+        } catch (error) {
+            console.error('❌ Error guardando material:', error);
+            alert('❌ Error: ' + error.message);
+        }
+    };
+}
+
+// Override función guardarMaterial (si existe por separado)
+if (typeof guardarMaterial !== 'undefined') {
+    const guardarMaterialOriginal = window.guardarMaterial;
+    window.guardarMaterial = async function() {
+        const nombre = document.getElementById('material-nombre')?.value;
+        const categoria = document.getElementById('material-categoria')?.value;
+        const unidad = document.getElementById('material-unidad')?.value;
+        const precioUnitario = parseFloat(document.getElementById('material-precio')?.value) || 0;
+        const proveedor = document.getElementById('material-proveedor')?.value;
+        const stockActual = parseFloat(document.getElementById('material-stock')?.value) || 0;
+        
+        if (!nombre) {
+            alert('⚠️ Ingresa el nombre del material');
+            return;
+        }
+        
+        const material = {
+            nombre,
+            categoria: categoria || 'General',
+            unidad: unidad || 'UND',
+            precio_unitario: precioUnitario,
+            proveedor: proveedor || 'SIN PROVEEDOR',
+            stock_actual: stockActual
+        };
+        
+        try {
+            console.log('📤 Guardando material en backend:', material);
+            
+            const response = await fetch(`${API_URL}/materiales`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(material)
+            });
+            
+            if (!response.ok) {
+                throw new Error('Error guardando material');
+            }
+            
+            const materialGuardado = await response.json();
+            
+            if (!window.db.materiales) window.db.materiales = [];
+            window.db.materiales.push(materialGuardado);
+            
+            if (typeof renderMateriales === 'function') {
+                renderMateriales();
+            }
+            
+            // Limpiar formulario
+            document.querySelectorAll('#material-nombre, #material-categoria, #material-unidad, #material-precio, #material-proveedor, #material-stock').forEach(input => {
+                if (input) input.value = '';
+            });
+            
+            if (typeof cerrarModal === 'function') cerrarModal();
+            
+            alert('✅ Material sincronizado en PostgreSQL');
+            
+            console.log('✅ Material guardado:', materialGuardado);
+            
+        } catch (error) {
+            console.error('❌ Error:', error);
+            alert('❌ Error: ' + error.message);
+        }
+    };
+}
+
+// Override función eliminarMaterial
+if (typeof eliminarMaterial !== 'undefined') {
+    const eliminarMaterialOriginal = window.eliminarMaterial;
+    window.eliminarMaterial = async function(id) {
+        if (!confirm('¿Eliminar este material?')) return;
+        
+        try {
+            console.log('🗑️ Eliminando material:', id);
+            
+            const response = await fetch(`${API_URL}/materiales/${id}`, {
+                method: 'DELETE'
+            });
+            
+            if (!response.ok) {
+                throw new Error('Error eliminando material');
+            }
+            
+            // Actualizar lista local
+            window.db.materiales = window.db.materiales.filter(m => m.id !== id);
+            
+            if (typeof renderMateriales === 'function') {
+                renderMateriales();
+            }
+            
+            alert('✅ Material eliminado de PostgreSQL');
+            console.log('✅ Material eliminado');
+            
+        } catch (error) {
+            console.error('❌ Error:', error);
+            alert('❌ Error: ' + error.message);
+        }
+    };
+}
+
+// Cargar materiales al iniciar sesión (override iniciarSesion)
+const iniciarSesionOriginalMateriales = window.iniciarSesion;
+if (iniciarSesionOriginalMateriales) {
+    window.iniciarSesion = async function(event) {
+        await iniciarSesionOriginalMateriales.call(this, event);
+        
+        // Cargar materiales después del login
+        try {
+            await cargarMaterialesDesdeBackend();
+        } catch (error) {
+            console.error('Error cargando materiales:', error);
+        }
+    };
+}
+
+console.log('✅ Módulo de materiales conectado al backend');
 </script>
 </body>
 </html>
