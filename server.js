@@ -292,7 +292,175 @@ app.delete('/api/inventario/:id', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+// ========== RECETAS ==========
+app.get('/api/recetas', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM recetas ORDER BY nombre');
+        res.json(result.rows);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
 
+app.post('/api/recetas', async (req, res) => {
+    try {
+        const { nombre, categoria, porciones, costo_produccion, precio_venta, tiempo_preparacion, ingredientes, pasos, notas } = req.body;
+        
+        const result = await pool.query(
+            'INSERT INTO recetas (nombre, categoria, porciones, costo_produccion, precio_venta, tiempo_preparacion, ingredientes, pasos, notas) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
+            [nombre, categoria, porciones, costo_produccion, precio_venta, tiempo_preparacion, JSON.stringify(ingredientes), pasos, notas]
+        );
+        
+        res.json(result.rows[0]);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.delete('/api/recetas/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM recetas WHERE id = $1', [req.params.id]);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ========== MATERIALES ==========
+app.get('/api/materiales', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM materiales ORDER BY nombre');
+        res.json(result.rows);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/materiales', async (req, res) => {
+    try {
+        const { nombre, categoria, unidad, precio_unitario, proveedor, stock_actual } = req.body;
+        
+        const result = await pool.query(
+            'INSERT INTO materiales (nombre, categoria, unidad, precio_unitario, proveedor, stock_actual) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+            [nombre, categoria, unidad, precio_unitario, proveedor, stock_actual || 0]
+        );
+        
+        res.json(result.rows[0]);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.delete('/api/materiales/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM materiales WHERE id = $1', [req.params.id]);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ========== CARTA Y BEBIDAS ==========
+app.get('/api/carta-bebidas', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM carta_bebidas ORDER BY tipo, nombre');
+        res.json(result.rows);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/carta-bebidas', async (req, res) => {
+    try {
+        const { tipo, nombre, categoria, precio, descripcion, disponible } = req.body;
+        
+        const result = await pool.query(
+            'INSERT INTO carta_bebidas (tipo, nombre, categoria, precio, descripcion, disponible) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+            [tipo, nombre, categoria, precio, descripcion, disponible !== false]
+        );
+        
+        res.json(result.rows[0]);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.delete('/api/carta-bebidas/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM carta_bebidas WHERE id = $1', [req.params.id]);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ========== FAMILIAS ==========
+app.get('/api/familias', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM familias ORDER BY nombre');
+        res.json(result.rows);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/familias', async (req, res) => {
+    try {
+        const { nombre, descripcion, icono } = req.body;
+        
+        const result = await pool.query(
+            'INSERT INTO familias (nombre, descripcion, icono) VALUES ($1, $2, $3) RETURNING *',
+            [nombre, descripcion, icono]
+        );
+        
+        res.json(result.rows[0]);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.delete('/api/familias/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM familias WHERE id = $1', [req.params.id]);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ========== ÓRDENES DE PLATOS ==========
+app.get('/api/ordenes-platos', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM ordenes_platos ORDER BY fecha DESC, id DESC');
+        res.json(result.rows);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/ordenes-platos', async (req, res) => {
+    try {
+        const { numero_orden, fecha, mesa, mesero, platos, total, estado } = req.body;
+        
+        const result = await pool.query(
+            'INSERT INTO ordenes_platos (numero_orden, fecha, mesa, mesero, platos, total, estado) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+            [numero_orden, fecha, mesa, mesero, JSON.stringify(platos), total, estado || 'Pendiente']
+        );
+        
+        res.json(result.rows[0]);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.delete('/api/ordenes-platos/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM ordenes_platos WHERE id = $1', [req.params.id]);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
 // ========== HEALTH CHECK ==========
 app.get('/api/health', async (req, res) => {
     try {
