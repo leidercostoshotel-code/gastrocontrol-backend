@@ -24558,6 +24558,159 @@ if (typeof eliminarUsuario !== 'undefined') {
 }
 
 console.log('✅ Módulo de usuarios conectado al backend');
+// ========== IMPORTACIÓN DE BACKUP SINCRONIZADA ==========
+
+// Override función importarBackup
+if (typeof importarBackup !== 'undefined') {
+    const importarBackupOriginal = window.importarBackup;
+    window.importarBackup = async function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        console.log('📂 Importando backup:', file.name);
+        
+        const reader = new FileReader();
+        
+        reader.onload = async function(e) {
+            try {
+                const backup = JSON.parse(e.target.result);
+                
+                console.log('📦 Backup cargado:', backup);
+                
+                // Mostrar progreso
+                const importarBtn = document.querySelector('[onclick*="importarBackup"]');
+                if (importarBtn) {
+                    importarBtn.disabled = true;
+                    importarBtn.textContent = '⏳ Importando...';
+                }
+                
+                let totalImportados = 0;
+                
+                // IMPORTAR EVENTOS
+                if (backup.eventos && backup.eventos.length > 0) {
+                    console.log('📅 Importando eventos:', backup.eventos.length);
+                    
+                    for (const evento of backup.eventos) {
+                        try {
+                            const response = await fetch(`${API_URL}/eventos`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    nombre: evento.nombre,
+                                    fecha: evento.fecha,
+                                    tipo: evento.tipo || 'Evento',
+                                    cliente: evento.cliente || '',
+                                    presupuesto: evento.presupuesto || 0,
+                                    estado: evento.estado || 'Pendiente',
+                                    hora_inicio: evento.horaInicio || null,
+                                    hora_fin: evento.horaFin || null,
+                                    ubicacion: evento.ubicacion || null,
+                                    invitados: evento.invitados || null,
+                                    notas: evento.notas || null,
+                                    items: evento.items || []
+                                })
+                            });
+                            
+                            if (response.ok) {
+                                totalImportados++;
+                            }
+                        } catch (error) {
+                            console.error('Error importando evento:', error);
+                        }
+                    }
+                }
+                
+                // IMPORTAR INVENTARIO
+                if (backup.inventario && backup.inventario.length > 0) {
+                    console.log('📦 Importando inventario:', backup.inventario.length);
+                    
+                    for (const item of backup.inventario) {
+                        try {
+                            const response = await fetch(`${API_URL}/inventario`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    categoria: item.categoria || 'OTROS',
+                                    nombre: item.nombre,
+                                    cantidad: item.cantidad || 0,
+                                    unidad: item.unidad || 'UND',
+                                    precio_unitario: item.precioUnitario || item.precio_unitario || 0,
+                                    stock_minimo: item.stockMinimo || item.stock_minimo || 0,
+                                    proveedor: item.proveedor || 'SIN PROVEEDOR'
+                                })
+                            });
+                            
+                            if (response.ok) {
+                                totalImportados++;
+                            }
+                        } catch (error) {
+                            console.error('Error importando inventario:', error);
+                        }
+                    }
+                }
+                
+                // RECARGAR DATOS
+                console.log('🔄 Recargando datos desde PostgreSQL...');
+                
+                const [eventos, inventario] = await Promise.all([
+                    fetch(`${API_URL}/eventos`).then(r => r.json()),
+                    fetch(`${API_URL}/inventario`).then(r => r.json())
+                ]);
+                
+                window.db.eventos = eventos;
+                window.db.inventario = inventario;
+                
+                // Cargar otros datos en localStorage (recetas, materiales, etc)
+                if (backup.recetas) window.db.recetas = backup.recetas;
+                if (backup.materiales) window.db.materiales = backup.materiales;
+                if (backup.cartaBebidas) window.db.cartaBebidas = backup.cartaBebidas;
+                if (backup.familias) window.db.familias = backup.familias;
+                if (backup.ordenesPlatos) window.db.ordenesPlatos = backup.ordenesPlatos;
+                
+                // Guardar en localStorage para datos que no están en backend
+                try {
+                    localStorage.setItem('gastro_control_pro', JSON.stringify(window.db));
+                } catch (e) {
+                    console.warn('localStorage lleno, usando solo PostgreSQL');
+                }
+                
+                // Renderizar
+                if (typeof renderEventos === 'function') renderEventos();
+                if (typeof renderInventario === 'function') renderInventario();
+                
+                // Restaurar botón
+                if (importarBtn) {
+                    importarBtn.disabled = false;
+                    importarBtn.innerHTML = '📥 IMPORTAR';
+                }
+                
+                alert(`✅ Backup importado exitosamente!\n\n` +
+                      `📊 Total sincronizado en PostgreSQL: ${totalImportados} registros\n\n` +
+                      `✅ Eventos: ${backup.eventos?.length || 0}\n` +
+                      `✅ Inventario: ${backup.inventario?.length || 0}\n` +
+                      `💾 Recetas/Materiales: Guardados localmente\n\n` +
+                      `🔄 Otros usuarios verán eventos e inventario al recargar`);
+                
+                console.log('✅ Importación completada:', totalImportados, 'registros sincronizados');
+                
+            } catch (error) {
+                console.error('❌ Error importando backup:', error);
+                alert('❌ Error al importar backup:\n\n' + error.message);
+                
+                // Restaurar botón
+                const importarBtn = document.querySelector('[onclick*="importarBackup"]');
+                if (importarBtn) {
+                    importarBtn.disabled = false;
+                    importarBtn.innerHTML = '📥 IMPORTAR';
+                }
+            }
+        };
+        
+        reader.readAsText(file);
+    };
+}
+
+console.log('✅ Importación de backup conectada al backend');
 </script>
 </body>
 </html>
