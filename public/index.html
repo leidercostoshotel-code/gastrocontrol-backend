@@ -24558,7 +24558,7 @@ if (typeof eliminarUsuario !== 'undefined') {
 }
 
 console.log('✅ Módulo de usuarios conectado al backend');
-// ========== IMPORTACIÓN DE BACKUP SINCRONIZADA ==========
+// ========== IMPORTACIÓN DE BACKUP COMPLETA SINCRONIZADA ==========
 
 // Override función importarBackup
 if (typeof importarBackup !== 'undefined') {
@@ -24567,7 +24567,7 @@ if (typeof importarBackup !== 'undefined') {
         const file = event.target.files[0];
         if (!file) return;
         
-        console.log('📂 Importando backup:', file.name);
+        console.log('📂 Importando backup completo:', file.name);
         
         const reader = new FileReader();
         
@@ -24581,14 +24581,16 @@ if (typeof importarBackup !== 'undefined') {
                 const importarBtn = document.querySelector('[onclick*="importarBackup"]');
                 if (importarBtn) {
                     importarBtn.disabled = true;
-                    importarBtn.textContent = '⏳ Importando...';
+                    importarBtn.textContent = '⏳ Importando a PostgreSQL...';
                 }
                 
                 let totalImportados = 0;
+                const resultados = {};
                 
                 // IMPORTAR EVENTOS
                 if (backup.eventos && backup.eventos.length > 0) {
                     console.log('📅 Importando eventos:', backup.eventos.length);
+                    resultados.eventos = 0;
                     
                     for (const evento of backup.eventos) {
                         try {
@@ -24612,6 +24614,7 @@ if (typeof importarBackup !== 'undefined') {
                             });
                             
                             if (response.ok) {
+                                resultados.eventos++;
                                 totalImportados++;
                             }
                         } catch (error) {
@@ -24623,6 +24626,7 @@ if (typeof importarBackup !== 'undefined') {
                 // IMPORTAR INVENTARIO
                 if (backup.inventario && backup.inventario.length > 0) {
                     console.log('📦 Importando inventario:', backup.inventario.length);
+                    resultados.inventario = 0;
                     
                     for (const item of backup.inventario) {
                         try {
@@ -24641,6 +24645,7 @@ if (typeof importarBackup !== 'undefined') {
                             });
                             
                             if (response.ok) {
+                                resultados.inventario++;
                                 totalImportados++;
                             }
                         } catch (error) {
@@ -24649,34 +24654,183 @@ if (typeof importarBackup !== 'undefined') {
                     }
                 }
                 
-                // RECARGAR DATOS
+                // IMPORTAR RECETAS
+                if (backup.recetas && backup.recetas.length > 0) {
+                    console.log('🍳 Importando recetas:', backup.recetas.length);
+                    resultados.recetas = 0;
+                    
+                    for (const receta of backup.recetas) {
+                        try {
+                            const response = await fetch(`${API_URL}/recetas`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    nombre: receta.nombre,
+                                    categoria: receta.categoria || 'General',
+                                    porciones: receta.porciones || 1,
+                                    costo_produccion: receta.costoProduccion || receta.costo_produccion || 0,
+                                    precio_venta: receta.precioVenta || receta.precio_venta || 0,
+                                    tiempo_preparacion: receta.tiempoPreparacion || receta.tiempo_preparacion || 0,
+                                    ingredientes: receta.ingredientes || [],
+                                    pasos: receta.pasos || '',
+                                    notas: receta.notas || ''
+                                })
+                            });
+                            
+                            if (response.ok) {
+                                resultados.recetas++;
+                                totalImportados++;
+                            }
+                        } catch (error) {
+                            console.error('Error importando receta:', error);
+                        }
+                    }
+                }
+                
+                // IMPORTAR MATERIALES
+                if (backup.materiales && backup.materiales.length > 0) {
+                    console.log('📋 Importando materiales:', backup.materiales.length);
+                    resultados.materiales = 0;
+                    
+                    for (const material of backup.materiales) {
+                        try {
+                            const response = await fetch(`${API_URL}/materiales`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    nombre: material.nombre,
+                                    categoria: material.categoria || 'General',
+                                    unidad: material.unidad || 'UND',
+                                    precio_unitario: material.precioUnitario || material.precio_unitario || 0,
+                                    proveedor: material.proveedor || 'SIN PROVEEDOR',
+                                    stock_actual: material.stockActual || material.stock_actual || 0
+                                })
+                            });
+                            
+                            if (response.ok) {
+                                resultados.materiales++;
+                                totalImportados++;
+                            }
+                        } catch (error) {
+                            console.error('Error importando material:', error);
+                        }
+                    }
+                }
+                
+                // IMPORTAR CARTA Y BEBIDAS
+                if (backup.cartaBebidas && backup.cartaBebidas.length > 0) {
+                    console.log('🍹 Importando carta y bebidas:', backup.cartaBebidas.length);
+                    resultados.cartaBebidas = 0;
+                    
+                    for (const item of backup.cartaBebidas) {
+                        try {
+                            const response = await fetch(`${API_URL}/carta-bebidas`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    tipo: item.tipo || 'Plato',
+                                    nombre: item.nombre,
+                                    categoria: item.categoria || 'General',
+                                    precio: item.precio || 0,
+                                    descripcion: item.descripcion || '',
+                                    disponible: item.disponible !== false
+                                })
+                            });
+                            
+                            if (response.ok) {
+                                resultados.cartaBebidas++;
+                                totalImportados++;
+                            }
+                        } catch (error) {
+                            console.error('Error importando carta/bebida:', error);
+                        }
+                    }
+                }
+                
+                // IMPORTAR FAMILIAS
+                if (backup.familias && backup.familias.length > 0) {
+                    console.log('👨‍👩‍👧‍👦 Importando familias:', backup.familias.length);
+                    resultados.familias = 0;
+                    
+                    for (const familia of backup.familias) {
+                        try {
+                            const response = await fetch(`${API_URL}/familias`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    nombre: familia.nombre,
+                                    descripcion: familia.descripcion || '',
+                                    icono: familia.icono || '📁'
+                                })
+                            });
+                            
+                            if (response.ok) {
+                                resultados.familias++;
+                                totalImportados++;
+                            }
+                        } catch (error) {
+                            console.error('Error importando familia:', error);
+                        }
+                    }
+                }
+                
+                // IMPORTAR ÓRDENES DE PLATOS
+                if (backup.ordenesPlatos && backup.ordenesPlatos.length > 0) {
+                    console.log('🍽️ Importando órdenes:', backup.ordenesPlatos.length);
+                    resultados.ordenes = 0;
+                    
+                    for (const orden of backup.ordenesPlatos) {
+                        try {
+                            const response = await fetch(`${API_URL}/ordenes-platos`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    numero_orden: orden.numeroOrden || orden.numero_orden || 'N/A',
+                                    fecha: orden.fecha,
+                                    mesa: orden.mesa || '',
+                                    mesero: orden.mesero || '',
+                                    platos: orden.platos || [],
+                                    total: orden.total || 0,
+                                    estado: orden.estado || 'Pendiente'
+                                })
+                            });
+                            
+                            if (response.ok) {
+                                resultados.ordenes++;
+                                totalImportados++;
+                            }
+                        } catch (error) {
+                            console.error('Error importando orden:', error);
+                        }
+                    }
+                }
+                
+                // RECARGAR TODOS LOS DATOS
                 console.log('🔄 Recargando datos desde PostgreSQL...');
                 
-                const [eventos, inventario] = await Promise.all([
-                    fetch(`${API_URL}/eventos`).then(r => r.json()),
-                    fetch(`${API_URL}/inventario`).then(r => r.json())
+                const [eventos, inventario, recetas, materiales, cartaBebidas, familias, ordenes] = await Promise.all([
+                    fetch(`${API_URL}/eventos`).then(r => r.json()).catch(() => []),
+                    fetch(`${API_URL}/inventario`).then(r => r.json()).catch(() => []),
+                    fetch(`${API_URL}/recetas`).then(r => r.json()).catch(() => []),
+                    fetch(`${API_URL}/materiales`).then(r => r.json()).catch(() => []),
+                    fetch(`${API_URL}/carta-bebidas`).then(r => r.json()).catch(() => []),
+                    fetch(`${API_URL}/familias`).then(r => r.json()).catch(() => []),
+                    fetch(`${API_URL}/ordenes-platos`).then(r => r.json()).catch(() => [])
                 ]);
                 
                 window.db.eventos = eventos;
                 window.db.inventario = inventario;
+                window.db.recetas = recetas;
+                window.db.materiales = materiales;
+                window.db.cartaBebidas = cartaBebidas;
+                window.db.familias = familias;
+                window.db.ordenesPlatos = ordenes;
                 
-                // Cargar otros datos en localStorage (recetas, materiales, etc)
-                if (backup.recetas) window.db.recetas = backup.recetas;
-                if (backup.materiales) window.db.materiales = backup.materiales;
-                if (backup.cartaBebidas) window.db.cartaBebidas = backup.cartaBebidas;
-                if (backup.familias) window.db.familias = backup.familias;
-                if (backup.ordenesPlatos) window.db.ordenesPlatos = backup.ordenesPlatos;
-                
-                // Guardar en localStorage para datos que no están en backend
-                try {
-                    localStorage.setItem('gastro_control_pro', JSON.stringify(window.db));
-                } catch (e) {
-                    console.warn('localStorage lleno, usando solo PostgreSQL');
-                }
-                
-                // Renderizar
+                // Renderizar todos los módulos
                 if (typeof renderEventos === 'function') renderEventos();
                 if (typeof renderInventario === 'function') renderInventario();
+                if (typeof renderRecetas === 'function') renderRecetas();
+                if (typeof renderMateriales === 'function') renderMateriales();
                 
                 // Restaurar botón
                 if (importarBtn) {
@@ -24684,20 +24838,27 @@ if (typeof importarBackup !== 'undefined') {
                     importarBtn.innerHTML = '📥 IMPORTAR';
                 }
                 
-                alert(`✅ Backup importado exitosamente!\n\n` +
-                      `📊 Total sincronizado en PostgreSQL: ${totalImportados} registros\n\n` +
-                      `✅ Eventos: ${backup.eventos?.length || 0}\n` +
-                      `✅ Inventario: ${backup.inventario?.length || 0}\n` +
-                      `💾 Recetas/Materiales: Guardados localmente\n\n` +
-                      `🔄 Otros usuarios verán eventos e inventario al recargar`);
+                let mensaje = `✅ BACKUP SINCRONIZADO EN POSTGRESQL!\n\n` +
+                             `📊 Total registros: ${totalImportados}\n\n`;
                 
-                console.log('✅ Importación completada:', totalImportados, 'registros sincronizados');
+                if (resultados.eventos) mensaje += `✅ Eventos: ${resultados.eventos}\n`;
+                if (resultados.inventario) mensaje += `✅ Inventario: ${resultados.inventario}\n`;
+                if (resultados.recetas) mensaje += `✅ Recetas: ${resultados.recetas}\n`;
+                if (resultados.materiales) mensaje += `✅ Materiales: ${resultados.materiales}\n`;
+                if (resultados.cartaBebidas) mensaje += `✅ Carta/Bebidas: ${resultados.cartaBebidas}\n`;
+                if (resultados.familias) mensaje += `✅ Familias: ${resultados.familias}\n`;
+                if (resultados.ordenes) mensaje += `✅ Órdenes: ${resultados.ordenes}\n`;
+                
+                mensaje += `\n🌐 TODOS LOS USUARIOS VERÁN ESTOS DATOS AL RECARGAR`;
+                
+                alert(mensaje);
+                
+                console.log('✅ Importación completa:', resultados);
                 
             } catch (error) {
                 console.error('❌ Error importando backup:', error);
                 alert('❌ Error al importar backup:\n\n' + error.message);
                 
-                // Restaurar botón
                 const importarBtn = document.querySelector('[onclick*="importarBackup"]');
                 if (importarBtn) {
                     importarBtn.disabled = false;
@@ -24710,7 +24871,7 @@ if (typeof importarBackup !== 'undefined') {
     };
 }
 
-console.log('✅ Importación de backup conectada al backend');
+console.log('✅ Importación completa de backup conectada al backend');
 </script>
 </body>
 </html>
