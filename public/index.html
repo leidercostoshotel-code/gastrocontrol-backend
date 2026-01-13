@@ -9029,9 +9029,19 @@ function exportarHojaCataPDF(sku) {
     doc.setFont(undefined, 'normal');
     
     plato.componentes.forEach((comp, idx) => {
-        doc.text(cleanTextForPDF(comp.nombre), 12, y);
-        doc.text(`${comp.cant.toFixed(2)} ${comp.unidad}`, 90, y, { align: 'right' });
-        y += 4;
+        // Dividir nombre largo en múltiples líneas si es necesario (máximo 70 caracteres por línea)
+        const nombreLineas = doc.splitTextToSize(cleanTextForPDF(comp.nombre), 70);
+        const cantidad = `${comp.cant.toFixed(2)} ${comp.unidad}`;
+        
+        // Imprimir nombre (puede ser multilínea)
+        doc.text(nombreLineas, 12, y);
+        
+        // Imprimir cantidad alineada a la derecha, en la última línea del nombre
+        const offsetY = (nombreLineas.length - 1) * 4;
+        doc.text(cantidad, 90, y + offsetY, { align: 'right' });
+        
+        // Avanzar Y según las líneas usadas
+        y += nombreLineas.length * 4;
     });
     
     // FOTO del plato (derecha, al mismo nivel que ingredientes)
