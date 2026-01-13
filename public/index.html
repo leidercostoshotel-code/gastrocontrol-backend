@@ -24444,6 +24444,120 @@ async function guardarEvento() {
 }
 
 console.log('✅ Backend conectado:', API_URL);
+// ========== USUARIOS API ==========
+
+// Override función cargarUsuarios
+if (typeof cargarUsuarios !== 'undefined') {
+    const cargarUsuariosOriginal = window.cargarUsuarios;
+    window.cargarUsuarios = async function() {
+        try {
+            const response = await fetch(`${API_URL}/usuarios`);
+            const usuarios = await response.json();
+            window.db.usuarios = usuarios;
+            
+            if (typeof renderUsuarios === 'function') {
+                renderUsuarios();
+            }
+            
+            console.log('✅ Usuarios cargados desde PostgreSQL:', usuarios.length);
+        } catch (error) {
+            console.error('❌ Error cargando usuarios:', error);
+        }
+    };
+}
+
+// Override función crearUsuario
+if (typeof crearUsuario !== 'undefined') {
+    const crearUsuarioOriginal = window.crearUsuario;
+    window.crearUsuario = async function() {
+        const username = document.getElementById('nuevo-usuario-username')?.value;
+        const password = document.getElementById('nuevo-usuario-password')?.value;
+        const rol = document.getElementById('nuevo-usuario-rol')?.value;
+        const nombreCompleto = document.getElementById('nuevo-usuario-nombre')?.value;
+        
+        if (!username || !password || !rol) {
+            alert('⚠️ Completa todos los campos obligatorios');
+            return;
+        }
+        
+        const usuario = {
+            username,
+            password,
+            rol,
+            nombre_completo: nombreCompleto || username
+        };
+        
+        try {
+            const response = await fetch(`${API_URL}/usuarios`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(usuario)
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Error creando usuario');
+            }
+            
+            const nuevoUsuario = await response.json();
+            
+            if (!window.db.usuarios) window.db.usuarios = [];
+            window.db.usuarios.push(nuevoUsuario);
+            
+            if (typeof renderUsuarios === 'function') {
+                renderUsuarios();
+            }
+            
+            // Limpiar formulario
+            if (document.getElementById('nuevo-usuario-username')) {
+                document.getElementById('nuevo-usuario-username').value = '';
+                document.getElementById('nuevo-usuario-password').value = '';
+                document.getElementById('nuevo-usuario-rol').value = 'Chef';
+                if (document.getElementById('nuevo-usuario-nombre')) {
+                    document.getElementById('nuevo-usuario-nombre').value = '';
+                }
+            }
+            
+            alert('✅ Usuario creado: ' + nuevoUsuario.username);
+            console.log('✅ Usuario creado en PostgreSQL:', nuevoUsuario);
+            
+        } catch (error) {
+            console.error('❌ Error:', error);
+            alert('❌ Error: ' + error.message);
+        }
+    };
+}
+
+// Override función eliminarUsuario
+if (typeof eliminarUsuario !== 'undefined') {
+    const eliminarUsuarioOriginal = window.eliminarUsuario;
+    window.eliminarUsuario = async function(id) {
+        if (!confirm('¿Eliminar este usuario?')) return;
+        
+        try {
+            const response = await fetch(`${API_URL}/usuarios/${id}`, {
+                method: 'DELETE'
+            });
+            
+            if (!response.ok) throw new Error('Error eliminando usuario');
+            
+            window.db.usuarios = window.db.usuarios.filter(u => u.id !== id);
+            
+            if (typeof renderUsuarios === 'function') {
+                renderUsuarios();
+            }
+            
+            alert('✅ Usuario eliminado');
+            console.log('✅ Usuario eliminado de PostgreSQL');
+            
+        } catch (error) {
+            console.error('❌ Error:', error);
+            alert('❌ Error: ' + error.message);
+        }
+    };
+}
+
+console.log('✅ Módulo de usuarios conectado al backend');
 </script>
 </body>
 </html>
