@@ -22893,15 +22893,17 @@ function guardarEvento() {
     
     // Calcular totales
     const costoTotal = eventoActual.platos.reduce((sum, p) => sum + p.costoTotal, 0);
+    
     let totalFC = 0;
     let totalCosto = 0;
     eventoActual.platos.forEach(p => {
         totalFC += p.fcPorcentaje * p.costoTotal;
         totalCosto += p.costoTotal;
     });
+    
     const fcPromedio = totalCosto > 0 ? totalFC / totalCosto : 0;
     
-    // NUEVO CÁLCULO: Precio con profit deseado
+    // Precio sugerido con profit
     const precioSugerido = costoTotal + (costoTotal * profitDeseado / 100);
     
     // Crear evento
@@ -22910,31 +22912,38 @@ function guardarEvento() {
         nombre: nombre,
         fecha: fecha,
         paxTotal: paxTotal,
-        profitDeseado: profitDeseado, // NUEVO: Guardar profit deseado
+        profitDeseado: profitDeseado,
         platos: JSON.parse(JSON.stringify(eventoActual.platos)), // Copia profunda
         costoTotal: costoTotal,
         fcPromedio: fcPromedio,
         precioSugerido: precioSugerido,
-        precioPorPax: precioSugerido / paxTotal,
+        precioPorPax: paxTotal > 0 ? precioSugerido / paxTotal : 0,
         fechaCreacion: new Date().toISOString()
     };
     
     // Guardar en db
     db.eventos.push(evento);
     save();
-    
-    alert('✅ Evento guardado exitosamente\n\n' +
-          'Evento: ' + nombre + '\n' +
-          'Fecha: ' + fecha + '\n' +
-          'PAX: ' + paxTotal + '\n' +
-          'Profit Deseado: ' + profitDeseado + '%\n' +
-          'Costo Total: S/. ' + costoTotal.toFixed(2) + '\n' +
-          'Precio Sugerido: S/. ' + precioSugerido.toFixed(2) + '\n' +
-          'Por Persona: S/. ' + (precioSugerido / paxTotal).toFixed(2));
+
+    // 🔴 ESTA ERA LA LÍNEA QUE FALTABA
+    renderEventosGuardados();
+
+    alert(
+        '✅ Evento guardado exitosamente\n\n' +
+        'Evento: ' + nombre + '\n' +
+        'Fecha: ' + fecha + '\n' +
+        'PAX: ' + paxTotal + '\n' +
+        'Profit Deseado: ' + profitDeseado + '%\n' +
+        'Costo Total: S/. ' + costoTotal.toFixed(2) + '\n' +
+        'Precio Sugerido: S/. ' + precioSugerido.toFixed(2) + '\n' +
+        'Por Persona: S/. ' + (paxTotal > 0 ? (precioSugerido / paxTotal).toFixed(2) : '0.00')
+    );
     
     console.log('✅ Evento guardado:', evento);
-}
 
+    // (Opcional pero recomendado)
+    limpiarEvento();
+}
 // ========== FUNCIÓN: LIMPIAR EVENTO ==========
 function limpiarEvento() {
     if (eventoActual.platos.length > 0) {
@@ -24406,7 +24415,7 @@ async function iniciarSesion(event) {
 }
 
 // ========== FUNCIONES GUARDAR/ACTUALIZAR ==========
-async function guardarEvento() {
+async function guardarEventoAPI() {
     const nombre = document.getElementById('evento-nombre').value;
     const fecha = document.getElementById('evento-fecha').value;
     
